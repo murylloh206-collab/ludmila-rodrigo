@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import FloatingHearts from "../components/FloatingHearts";
 import Toast from "../components/Toast";
 import CoupleCarousel from "../components/CoupleCarousel";
@@ -197,61 +197,226 @@ function PostCard({ post, currentUserId, onLike, onComment, onDelete, onOpenPhot
   );
 }
 
-// ─── UPLOAD MODAL ────────────────────────────────────────────────────────────
+// ─── UPLOAD MODAL (ATUALIZADO COM 2 BOTÕES) ────────────────────────────────
 function UploadModal({ onClose, onPublish, darkMode }) {
   const [preview, setPreview] = useState(null);
+  const [file, setFile] = useState(null);
   const [caption, setCaption] = useState("");
   const [publishing, setPublishing] = useState(false);
-  const inputRef = useRef();
+  const [error, setError] = useState("");
+  const cameraInputRef = useRef();
+  const galleryInputRef = useRef();
 
-  const handleFile = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setPreview(ev.target.result);
-    reader.readAsDataURL(file);
-  };
+  // Função para comprimir imagem
+  const compressImage = useCallback((file, maxSizeMB = 1) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
 
-  const handlePublishClick = () => {
-    if (!preview) return;
-    setPublishing(true);
-    onPublish({ image_url: preview, caption }, () => {
-      setPublishing(false);
-      onClose();
+          const MAX_DIM = 1200;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let quality = 0.85;
+          const tryCompress = () => {
+            canvas.toBlob(
+              (blob) => {
+                if (blob.size > maxSizeMB * 1024 * 1024 && quality > 0.3) {
+                  quality -= 0.1;
+                  tryCompress();
+                } else {
+                  resolve(blob);
+                }
+              },
+              "image/jpeg",
+              quality
+            );
+          };
+          tryCompress();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     });
+  }, []);
+
+  const blobToDataUrl = useCallback((blob) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  const handleFile = useCallback((e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+    setError("");
+
+    const reader = new FileReader();
+    reader.onload = (ev) => setPreview(ev.target.result);
+    reader.readAsDataURL(selectedFile);
+    setFile(selectedFile);
+    e.target.value = "";
+  }, []);
+
+  const handlePublishClick = async () => {
+    if (!preview || !file) return;
+    setPublishing(true);
+    setError("");
+
+    try {
+      const compressed = await compressImage(file);
+      const dataUrl = await blobToDataUrl(compressed);
+      
+      // Usa o onPublish existente
+      await onPublish({ image_url: dataUrl, caption }, () => {
+        setPublishing(false);
+        onClose();
+      });
+    } catch (err) {
+      console.error("Erro ao publicar:", err);
+      setError(err.message || "Erro ao publicar. Tente novamente.");
+      setPublishing(false);
+    }
   };
 
-  const modalBg = darkMode ? "#2a2a3e" : "#fff";
   const textColor = darkMode ? "#E6E6FA" : "#4A3B5C";
 
   return (
     <div className="bottom-sheet" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className={darkMode ? "bottom-sheet-panel dark-panel" : "bottom-sheet-panel"} style={{ padding: 20, paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))", overflowY: "auto" }}>
+      <div className={darkMode ? "bottom-sheet-panel dark-panel" : "bottom-sheet-panel"} style={{ 
+        padding: 20, 
+        paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))", 
+        overflowY: "auto" 
+      }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: textColor, margin: 0, fontWeight: 600 }}>Compartilhar</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: textColor }}><IconClose /></button>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: textColor, margin: 0, fontWeight: 600 }}>
+            Compartilhar momento
+          </h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: textColor, minWidth: 44, minHeight: 44 }}>
+            <IconClose />
+          </button>
         </div>
+
+        {error && (
+          <div style={{
+            background: "#FFF0F0", color: "#D32F2F", padding: "10px 14px",
+            borderRadius: 10, fontSize: 13, marginBottom: 16,
+          }}>{error}</div>
+        )}
+
         {!preview ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <button onClick={() => inputRef.current?.click()} style={{
-              background: darkMode ? "#1a1a2e" : "#F5F0FF", border: "2px dashed #C3B1E1", borderRadius: 14,
-              padding: 28, cursor: "pointer", color: "#7A6A8F", fontSize: 14,
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+            <p style={{
+              textAlign: "center", color: "#9B8FAF", fontSize: 13,
+              margin: "0 0 4px 0", fontFamily: "inherit",
             }}>
-              <IconCamera />
-              <span>Toque para escolher uma foto</span>
-            </button>
-            <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{ display: "none" }} />
+              Escolha como deseja adicionar sua foto
+            </p>
+
+            <div style={{ display: "flex", gap: 12 }}>
+              {/* Botão Câmera */}
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                style={{
+                  flex: 1, background: "linear-gradient(135deg, #967BB6, #7A6A8F)",
+                  border: "none", borderRadius: 16,
+                  padding: "28px 16px", cursor: "pointer", color: "#fff", fontSize: 15,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  boxShadow: "0 4px 15px rgba(150,123,182,0.3)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(150,123,182,0.45)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 4px 15px rgba(150,123,182,0.3)";
+                }}
+              >
+                <span style={{ fontSize: 36 }}>📸</span>
+                <span style={{ fontWeight: 600 }}>Tirar Foto</span>
+                <span style={{ fontSize: 11, opacity: 0.85 }}>Usar a câmera</span>
+              </button>
+
+              {/* Botão Galeria */}
+              <button
+                onClick={() => galleryInputRef.current?.click()}
+                style={{
+                  flex: 1, background: "#F5F0FF", border: "2px solid #C3B1E1",
+                  borderRadius: 16,
+                  padding: "28px 16px", cursor: "pointer", color: "#7A6A8F", fontSize: 15,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  boxShadow: "0 2px 10px rgba(195,177,225,0.2)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(195,177,225,0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 2px 10px rgba(195,177,225,0.2)";
+                }}
+              >
+                <span style={{ fontSize: 36 }}>🖼️</span>
+                <span style={{ fontWeight: 600, color: "#4A3B5C" }}>Galeria</span>
+                <span style={{ fontSize: 11, color: "#9B8FAF" }}>Escolher uma foto</span>
+              </button>
+            </div>
+
+            <span style={{
+              textAlign: "center", fontSize: 11, color: "#9B8FAF", marginTop: 4,
+            }}>
+              JPG, PNG ou HEIC • máx 10MB (comprimido para 1MB)
+            </span>
+
+            {/* Input para Câmera - com capture="environment" */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFile}
+              style={{ display: "none" }}
+            />
+            {/* Input para Galeria - sem capture */}
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFile}
+              style={{ display: "none" }}
+            />
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ borderRadius: 14, overflow: "hidden", aspectRatio: "1/1", position: "relative" }}>
               <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              <button onClick={() => setPreview(null)} style={{
-                position: "absolute", top: 8, right: 8, background: "rgba(74,59,92,0.7)",
-                border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer",
-                color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-              }}>✕</button>
+              <button
+                onClick={() => { setPreview(null); setFile(null); setError(""); }}
+                style={{
+                  position: "absolute", top: 8, right: 8,
+                  background: "rgba(74,59,92,0.7)", border: "none", borderRadius: "50%",
+                  width: 28, height: 28, cursor: "pointer", color: "#fff",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
             </div>
             <textarea
               placeholder="Escreva uma legenda..."
@@ -264,13 +429,20 @@ function UploadModal({ onClose, onPublish, darkMode }) {
                 outline: "none", background: darkMode ? "#1a1a2e" : "#F9F7FF",
               }}
             />
-            <div style={{ textAlign: "right", fontSize: 11, color: "#9B8FAF", marginTop: -6 }}>{caption.length}/200</div>
-            <button onClick={handlePublishClick} disabled={publishing} style={{
-              background: "#967BB6", color: "#fff", border: "none", borderRadius: 12,
-              padding: "12px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
-              opacity: publishing ? 0.8 : 1, transition: "all 0.2s",
-            }}>
-              {publishing ? "Publicando..." : "Publicar"}
+            <div style={{ textAlign: "right", fontSize: 11, color: "#9B8FAF", marginTop: -6 }}>
+              {caption.length}/200
+            </div>
+            <button
+              onClick={handlePublishClick}
+              disabled={publishing}
+              style={{
+                background: "#967BB6", color: "#fff", border: "none", borderRadius: 12,
+                padding: "12px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                fontFamily: "'Cormorant Garamond', serif", letterSpacing: 0.5,
+                opacity: publishing ? 0.8 : 1, transition: "all 0.2s",
+              }}
+            >
+              {publishing ? "Publicando..." : "💜 Publicar"}
             </button>
           </div>
         )}
@@ -298,7 +470,6 @@ function CommentsModal({ postId, comments, currentUser, onClose, onAdd, onEdit, 
     }
   };
 
-  const modalBg = darkMode ? "#2a2a3e" : "#fff";
   const textColor = darkMode ? "#E6E6FA" : "#4A3B5C";
   const panelClass = darkMode ? "bottom-sheet-panel dark-panel" : "bottom-sheet-panel";
 
