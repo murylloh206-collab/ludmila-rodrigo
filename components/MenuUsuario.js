@@ -74,7 +74,7 @@ export default function MenuUsuario({ user, onLogout, darkMode, onToggleDarkMode
           color="#967BB6"
           avatarUrl={user?.avatar_url}
         />
-        <span style={{ fontWeight: 500, color: textColor, fontSize: 13 }}>
+        <span className="hide-on-mobile" style={{ fontWeight: 500, color: textColor, fontSize: 13 }}>
           {user?.nome_convidado || "Convidado"}
         </span>
         <span style={{ fontSize: 10, color: "#967BB6" }}>▼</span>

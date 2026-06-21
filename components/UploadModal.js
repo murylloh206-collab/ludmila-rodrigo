@@ -61,7 +61,8 @@ export default function UploadModal({ userId, onClose, onPublished }) {
   const [caption, setCaption] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
-  const inputRef = useRef();
+  const cameraInputRef = useRef();
+  const galleryInputRef = useRef();
 
   const handleFile = useCallback((e) => {
     const selectedFile = e.target.files[0];
@@ -72,6 +73,8 @@ export default function UploadModal({ userId, onClose, onPublished }) {
     reader.onload = (ev) => setPreview(ev.target.result);
     reader.readAsDataURL(selectedFile);
     setFile(selectedFile);
+    // Reset o input para permitir selecionar o mesmo arquivo novamente
+    e.target.value = "";
   }, []);
 
   const handlePublish = async () => {
@@ -130,22 +133,83 @@ export default function UploadModal({ userId, onClose, onPublished }) {
 
         {!preview ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <button
-              onClick={() => inputRef.current?.click()}
-              style={{
-                background: "#F5F0FF", border: "2px dashed #C3B1E1", borderRadius: 16,
-                padding: 32, cursor: "pointer", color: "#7A6A8F", fontSize: 15,
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 36 }}>📷</span>
-              <span>Toque para escolher uma foto</span>
-              <span style={{ fontSize: 12, color: "#9B8FAF" }}>
-                JPG, PNG ou HEIC • máx 10MB (comprimido para 1MB)
-              </span>
-            </button>
+            <p style={{
+              textAlign: "center", color: "#9B8FAF", fontSize: 13,
+              margin: "0 0 4px 0", fontFamily: "inherit",
+            }}>
+              Escolha como deseja adicionar sua foto
+            </p>
+
+            <div style={{ display: "flex", gap: 12 }}>
+              {/* Botão Câmera */}
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                style={{
+                  flex: 1, background: "linear-gradient(135deg, #967BB6, #7A6A8F)",
+                  border: "none", borderRadius: 16,
+                  padding: "28px 16px", cursor: "pointer", color: "#fff", fontSize: 15,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  boxShadow: "0 4px 15px rgba(150,123,182,0.3)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(150,123,182,0.45)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 4px 15px rgba(150,123,182,0.3)";
+                }}
+              >
+                <span style={{ fontSize: 36 }}>📸</span>
+                <span style={{ fontWeight: 600 }}>Tirar Foto</span>
+                <span style={{ fontSize: 11, opacity: 0.85 }}>
+                  Usar a câmera
+                </span>
+              </button>
+
+              {/* Botão Galeria */}
+              <button
+                onClick={() => galleryInputRef.current?.click()}
+                style={{
+                  flex: 1, background: "#F5F0FF", border: "2px solid #C3B1E1",
+                  borderRadius: 16,
+                  padding: "28px 16px", cursor: "pointer", color: "#7A6A8F", fontSize: 15,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  boxShadow: "0 2px 10px rgba(195,177,225,0.2)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(195,177,225,0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 2px 10px rgba(195,177,225,0.2)";
+                }}
+              >
+                <span style={{ fontSize: 36 }}>🖼️</span>
+                <span style={{ fontWeight: 600, color: "#4A3B5C" }}>Galeria</span>
+                <span style={{ fontSize: 11, color: "#9B8FAF" }}>
+                  Escolher uma foto
+                </span>
+              </button>
+            </div>
+
+            <span style={{
+              textAlign: "center", fontSize: 11, color: "#9B8FAF", marginTop: 4,
+            }}>
+              JPG, PNG ou HEIC • máx 10MB (comprimido para 1MB)
+            </span>
+
+            {/* Input para Câmera - com capture="environment" */}
             <input
-              ref={inputRef} type="file" accept="image/*" capture="environment"
+              ref={cameraInputRef} type="file" accept="image/*" capture="environment"
+              onChange={handleFile} style={{ display: "none" }}
+            />
+            {/* Input para Galeria - sem capture, abre o seletor de arquivos/galeria */}
+            <input
+              ref={galleryInputRef} type="file" accept="image/*"
               onChange={handleFile} style={{ display: "none" }}
             />
           </div>

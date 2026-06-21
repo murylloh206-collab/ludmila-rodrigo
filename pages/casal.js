@@ -146,7 +146,7 @@ export default function Casal() {
       <Toast message={toast.message} visible={toast.visible} />
       {showParabens && <ParabensModal onClose={() => setShowParabens(false)} />}
 
-      <header style={styles.header}>
+      <header className="app-header" style={styles.header}>
         <img src="/photo.png" alt="L&R" style={styles.logo} />
         <div>
           <h1 style={styles.headerTitle}>Painel do Casal</h1>
@@ -166,7 +166,7 @@ export default function Casal() {
         </button>
       </div>
 
-      <main style={styles.main}>
+      <main className="app-shell" style={{ maxWidth: 640 }}>
         {aba === "convidados" && (
           <div style={styles.listaConvidados}>
             {convidados.map(c => (
@@ -205,7 +205,7 @@ export default function Casal() {
                 <p>Nenhuma foto publicada ainda</p>
               </div>
             ) : (
-              <div style={styles.fotosGrid}>
+              <div className="casal-fotos-grid">
                 {fotos.map(foto => (
                   <div key={foto.id} style={styles.fotoCard}>
                     <label style={styles.fotoLabel}>
@@ -234,13 +234,13 @@ export default function Casal() {
 
 const styles = {
   loading: { minHeight: "100vh", background: "#F5F0FF", display: "flex", alignItems: "center", justifyContent: "center" },
-  header: { background: "rgba(245,240,255,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid #EDE7F6", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, position: "sticky", top: 0, zIndex: 100 },
+  header: { background: "rgba(245,240,255,0.95)", borderBottom: "1px solid #EDE7F6", display: "flex", alignItems: "center", gap: 12 },
   logo: { width: 44, height: 44, borderRadius: "50%", border: "2px solid #967BB6", objectFit: "cover" },
   headerTitle: { fontFamily: "'Cormorant Garamond', serif", fontSize: 20, fontWeight: 600, color: "#4A3B5C", margin: 0 },
   headerSub: { fontSize: 12, color: "#9B8FAF", margin: 0 },
   logoutBtn: { marginLeft: "auto", background: "none", border: "1px solid #C3B1E1", color: "#967BB6", padding: "6px 12px", borderRadius: 20, cursor: "pointer", fontSize: 12 },
-  tabs: { display: "flex", gap: 8, padding: "12px 16px", background: "#F5F0FF" },
-  tab: { flex: 1, padding: "10px", border: "1px solid #EDE7F6", borderRadius: 12, background: "#fff", color: "#7A6A8F", cursor: "pointer", fontSize: 13, fontWeight: 500 },
+  tabs: { display: "flex", gap: 8, padding: "12px 16px", background: "#F5F0FF", position: "sticky", top: "calc(56px + env(safe-area-inset-top, 0px))", zIndex: 90 },
+  tab: { flex: 1, padding: "14px 10px", border: "1px solid #EDE7F6", borderRadius: 12, background: "#fff", color: "#7A6A8F", cursor: "pointer", fontSize: 14, fontWeight: 500, minHeight: 48 },
   tabActive: { background: "#967BB6", color: "#fff", borderColor: "#967BB6" },
   main: { maxWidth: 640, margin: "0 auto", padding: "0 16px 40px" },
   listaConvidados: { display: "flex", flexDirection: "column", gap: 10, marginTop: 8 },
@@ -251,7 +251,7 @@ const styles = {
   fotosToolbar: { display: "flex", gap: 10, margin: "12px 0", flexWrap: "wrap" },
   toolbarBtn: { background: "#fff", border: "1px solid #C3B1E1", color: "#967BB6", padding: "8px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer" },
   toolbarBtnPrimary: { background: "#967BB6", border: "none", color: "#fff", padding: "8px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer" },
-  fotosGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 },
+  fotosGrid: { display: "grid", gridTemplateColumns: "1fr", gap: 12 },
   fotoCard: { background: "#fff", borderRadius: 12, overflow: "hidden", border: "1px solid #EDE7F6" },
   fotoLabel: { position: "relative", display: "block", cursor: "pointer" },
   checkbox: { position: "absolute", top: 8, left: 8, zIndex: 2, width: 18, height: 18, accentColor: "#967BB6" },

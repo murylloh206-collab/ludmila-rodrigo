@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Avatar from "./Avatar";
+import CommentRow from "./CommentRow";
 
 // ─── ÍCONES SVG ──────────────────────────────────────────────────────────────
 const IconHeart = ({ filled }) => (
@@ -54,12 +55,15 @@ export default function PhotoModal({
   initialIndex, 
   currentUserId, 
   onLike, 
-  onAddComment, 
+  onAddComment,
+  onEditComment,
+  onDeleteComment,
   onClose,
   darkMode = false
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [commentText, setCommentText] = useState("");
+  const [sending, setSending] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const commentsEndRef = useRef(null);
@@ -112,10 +116,15 @@ export default function PhotoModal({
     setTouchStart(null);
   };
 
-  const handleSendComment = () => {
-    if (!commentText.trim()) return;
-    onAddComment(post.id, commentText.trim());
-    setCommentText("");
+  const handleSendComment = async () => {
+    if (!commentText.trim() || sending) return;
+    setSending(true);
+    try {
+      await onAddComment(post.id, commentText.trim());
+      setCommentText("");
+    } finally {
+      setSending(false);
+    }
   };
 
   useEffect(() => {
@@ -177,14 +186,15 @@ export default function PhotoModal({
 
             <div style={styles.commentsList}>
               {postComments.map(comment => (
-                <div key={comment.id} style={styles.commentItem}>
-                  <Avatar initials={comment.author.slice(0, 2).toUpperCase()} size={28} color="#C3B1E1" avatarUrl={comment.avatar_url} />
-                  <div style={styles.commentContent}>
-                    <span style={{ ...styles.commentAuthor, color: textColor }}>{comment.author}</span>
-                    <span style={{ ...styles.commentText, color: secondaryText }}>{comment.text}</span>
-                    <span style={styles.commentTime}>{timeAgo(comment.created_at)}</span>
-                  </div>
-                </div>
+                <CommentRow
+                  key={comment.id}
+                  comment={comment}
+                  currentUserId={currentUserId}
+                  darkMode={darkMode}
+                  onEdit={onEditComment}
+                  onDelete={onDeleteComment}
+                  compact
+                />
               ))}
               <div ref={commentsEndRef} />
             </div>
@@ -204,6 +214,8 @@ export default function PhotoModal({
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSendComment()}
+                  disabled={sending}
+                  className="mobile-input"
                   style={{
                     ...styles.input,
                     background: darkMode ? "#2a2a3e" : "#F9F7FF",
@@ -211,7 +223,7 @@ export default function PhotoModal({
                     borderColor: darkMode ? "#3a3a4e" : "#C3B1E1",
                   }}
                 />
-                <button onClick={handleSendComment} style={styles.sendBtn}>
+                <button onClick={handleSendComment} disabled={sending || !commentText.trim()} style={styles.sendBtn}>
                   <IconSend />
                 </button>
               </div>
@@ -274,22 +286,29 @@ export default function PhotoModal({
 
           <div style={styles.commentsListMobile}>
             {postComments.map(comment => (
-              <div key={comment.id} style={{ ...styles.commentItemMobile, borderBottomColor: darkMode ? "#3a3a4e" : "#EDE7F6" }}>
-                <strong style={{ color: textColor }}>{comment.author}</strong>
-                <span style={{ color: secondaryText }}>{comment.text}</span>
-                <span style={styles.commentTimeMobile}>{timeAgo(comment.created_at)}</span>
+              <div key={comment.id} style={{ padding: "8px 0", borderBottom: `1px solid ${darkMode ? "#3a3a4e" : "#EDE7F6"}` }}>
+                <CommentRow
+                  comment={comment}
+                  currentUserId={currentUserId}
+                  darkMode={darkMode}
+                  onEdit={onEditComment}
+                  onDelete={onDeleteComment}
+                  compact
+                />
               </div>
             ))}
             <div ref={commentsEndRef} />
           </div>
 
-          <div style={{ ...styles.commentInputMobile, borderTopColor: darkMode ? "#3a3a4e" : "#EDE7F6" }}>
+          <div style={{ ...styles.commentInputMobile, borderTopColor: darkMode ? "#3a3a4e" : "#EDE7F6", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
             <input
               type="text"
               placeholder="Adicione um comentário..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendComment()}
+              disabled={sending}
+              className="mobile-input"
               style={{
                 ...styles.inputMobile,
                 background: darkMode ? "#2a2a3e" : "#F9F7FF",
@@ -297,7 +316,7 @@ export default function PhotoModal({
                 borderColor: darkMode ? "#3a3a4e" : "#C3B1E1",
               }}
             />
-            <button onClick={handleSendComment} style={styles.sendBtnMobile}>
+            <button onClick={handleSendComment} disabled={sending || !commentText.trim()} style={styles.sendBtnMobile}>
               <IconSend />
             </button>
           </div>

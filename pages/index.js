@@ -226,21 +226,23 @@ export default function Login() {
 
 const styles = {
   container: {
-    minHeight: "100vh",
+    minHeight: "100dvh",
     background: "linear-gradient(135deg, #F5F0FF 0%, #E8E0F5 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: "20px 16px",
+    paddingTop: "calc(20px + env(safe-area-inset-top, 0px))",
+    paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
     position: "relative",
     overflow: "hidden",
   },
   card: {
     background: "white",
     borderRadius: 24,
-    padding: 40,
+    padding: "32px 24px",
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 420,
     textAlign: "center",
     boxShadow: "0 20px 40px rgba(150,123,182,0.15)",
     position: "relative",
@@ -268,7 +270,7 @@ const styles = {
   },
   input: {
     width: "100%",
-    padding: "14px 16px",
+    padding: "16px",
     fontSize: 16,
     border: "2px solid #C3B1E1",
     borderRadius: 12,
@@ -276,10 +278,11 @@ const styles = {
     boxSizing: "border-box",
     outline: "none",
     fontFamily: "inherit",
+    minHeight: 52,
   },
   botao: {
     width: "100%",
-    padding: "14px",
+    padding: "16px",
     fontSize: 16,
     fontWeight: "bold",
     background: "#967BB6",
@@ -288,6 +291,7 @@ const styles = {
     borderRadius: 12,
     cursor: "pointer",
     fontFamily: "inherit",
+    minHeight: 52,
   },
   ajuda: {
     fontSize: 12,

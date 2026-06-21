@@ -4,12 +4,7 @@ import Toast from "../components/Toast";
 import CoupleCarousel from "../components/CoupleCarousel";
 import Avatar from "../components/Avatar";
 import PhotoModal from "../components/PhotoModal";
-import MenuUsuario from "../components/MenuUsuario";
-import { supabase } from "../lib/supabase";
-import { uploadPhoto } from "../lib/uploadPhoto";
-import { createPost } from "../lib/createPost";
-import { createComment, updateComment, deleteComment } from "../lib/commentActions";
-import CommentRow from "../components/CommentRow";
+import { supabase, supabaseAdmin } from "../lib/supabase";
 
 // ─── ÍCONES SVG ──────────────────────────────────────────────────────────────
 const IconHeart = ({ filled }) => (
@@ -103,6 +98,18 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d`;
 }
 
+function dataURLtoFile(dataurl, filename) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
 function launchConfetti(canvasRef) {
   const canvas = canvasRef.current;
   if (!canvas) return;
@@ -176,20 +183,20 @@ function PostCard({ post, currentUserId, onLike, onComment, onDelete, onOpenPhot
         {post.caption && (
           <p style={{ fontSize: 12, color: captionColor, margin: "0 0 8px", lineHeight: 1.4 }}>{post.caption}</p>
         )}
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <button onClick={() => onLike(post.id)} style={{
-            background: "none", border: "none", cursor: "pointer", padding: "8px 4px",
-            display: "flex", alignItems: "center", gap: 6, minHeight: 44,
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+            display: "flex", alignItems: "center", gap: 6,
           }}>
             <IconHeart filled={post.liked} />
-            <span style={{ fontSize: 13, color: post.liked ? "#967BB6" : "#9B8FAF" }}>{post.likes_count || 0}</span>
+            <span style={{ fontSize: 12, color: post.liked ? "#967BB6" : "#9B8FAF" }}>{post.likes_count || 0}</span>
           </button>
           <button onClick={() => onComment(post.id)} style={{
-            background: "none", border: "none", cursor: "pointer", padding: "8px 4px",
-            display: "flex", alignItems: "center", gap: 6, minHeight: 44,
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+            display: "flex", alignItems: "center", gap: 6,
           }}>
             <IconComment />
-            <span style={{ fontSize: 13, color: "#9B8FAF" }}>Comentar</span>
+            <span style={{ fontSize: 12, color: "#9B8FAF" }}>Comentar</span>
           </button>
         </div>
       </div>
@@ -225,8 +232,8 @@ function UploadModal({ onClose, onPublish, darkMode }) {
   const textColor = darkMode ? "#E6E6FA" : "#4A3B5C";
 
   return (
-    <div className="bottom-sheet" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className={darkMode ? "bottom-sheet-panel dark-panel" : "bottom-sheet-panel"} style={{ padding: 20, paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(74,59,92,0.5)", zIndex: 500, display: "flex", alignItems: "flex-end", padding: 0 }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: modalBg, borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 560, margin: "0 auto", padding: 20, paddingBottom: 32, maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: textColor, margin: 0, fontWeight: 600 }}>Compartilhar</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: textColor }}><IconClose /></button>
@@ -280,71 +287,184 @@ function UploadModal({ onClose, onPublish, darkMode }) {
 }
 
 // ─── COMMENTS MODAL ──────────────────────────────────────────────────────────
-function CommentsModal({ postId, comments, currentUser, onClose, onAdd, onEdit, onDelete, darkMode }) {
+function CommentsModal({ postId, comments, currentUser, onClose, onAdd, darkMode }) {
   const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
   const postComments = comments[postId] || [];
   const listRef = useRef();
 
-  const handleSend = async () => {
-    if (!text.trim() || sending) return;
-    setSending(true);
-    try {
-      await onAdd(postId, text.trim());
-      setText("");
-      setTimeout(() => listRef.current?.scrollTo({ top: 99999, behavior: "smooth" }), 100);
-    } finally {
-      setSending(false);
-    }
+  const handleSend = () => {
+    if (!text.trim()) return;
+    onAdd(postId, text.trim());
+    setText("");
   };
 
   const modalBg = darkMode ? "#2a2a3e" : "#fff";
   const textColor = darkMode ? "#E6E6FA" : "#4A3B5C";
-  const panelClass = darkMode ? "bottom-sheet-panel dark-panel" : "bottom-sheet-panel";
+  const commentColor = darkMode ? "#B0A8C0" : "#7A6A8F";
 
   return (
-    <div className="bottom-sheet" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className={panelClass} style={{ maxHeight: "min(80vh, 720px)" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(74,59,92,0.5)", zIndex: 500, display: "flex", alignItems: "flex-end" }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: modalBg, borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", maxHeight: "70vh" }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${darkMode ? "#3a3a4e" : "#F0EBF8"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: textColor, margin: 0 }}>Comentários</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: textColor, minWidth: 44, minHeight: 44 }}><IconClose /></button>
+          <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: textColor, margin: 0 }}>Comentários</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: textColor }}><IconClose /></button>
         </div>
-        <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
-          {postComments.length === 0 && <p style={{ color: "#9B8FAF", fontSize: 14, textAlign: "center", marginTop: 20 }}>Seja o primeiro a comentar!</p>}
+        <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {postComments.length === 0 && <p style={{ color: "#9B8FAF", fontSize: 13, textAlign: "center", marginTop: 20 }}>Seja o primeiro a comentar!</p>}
           {postComments.map(c => (
-            <CommentRow
-              key={c.id}
-              comment={c}
-              currentUserId={currentUser.id}
-              darkMode={darkMode}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
+            <div key={c.id} style={{ display: "flex", gap: 10 }}>
+              <Avatar initials={c.author?.charAt(0).toUpperCase() || "?"} size={32} color="#C3B1E1" avatarUrl={c.avatar_url} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: textColor }}>{c.author}</div>
+                <div style={{ fontSize: 13, color: commentColor, lineHeight: 1.4 }}>{c.text}</div>
+                <div style={{ fontSize: 10, color: "#9B8FAF", marginTop: 2 }}>{timeAgo(c.created_at)}</div>
+              </div>
+            </div>
           ))}
         </div>
-        <div style={{ padding: "12px 16px calc(16px + env(safe-area-inset-bottom, 0px))", borderTop: `1px solid ${darkMode ? "#3a3a4e" : "#F0EBF8"}`, display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ padding: "12px 16px 20px", borderTop: `1px solid ${darkMode ? "#3a3a4e" : "#F0EBF8"}`, display: "flex", gap: 10 }}>
           <input
-            value={text}
-            onChange={e => setText(e.target.value)}
+            value={text} onChange={e => setText(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSend()}
             placeholder="Adicione um comentário..."
-            disabled={sending}
-            className="mobile-input"
             style={{
-              flex: 1, border: "1.5px solid #C3B1E1", borderRadius: 24, padding: "12px 16px",
-              fontSize: 16, color: textColor, outline: "none", background: darkMode ? "#1a1a2e" : "#F9F7FF",
+              flex: 1, border: "1.5px solid #C3B1E1", borderRadius: 20, padding: "10px 14px",
+              fontSize: 13, color: textColor, outline: "none", background: darkMode ? "#1a1a2e" : "#F9F7FF",
               fontFamily: "inherit",
             }}
           />
-          <button onClick={handleSend} disabled={sending || !text.trim()} style={{
+          <button onClick={handleSend} style={{
             background: "#967BB6", color: "#fff", border: "none", borderRadius: "50%",
-            width: 44, height: 44, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0, opacity: sending ? 0.7 : 1,
+            width: 38, height: 38, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <IconSend />
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── MENU USUÁRIO (DROPDOWN) ─────────────────────────────────────────────────
+function MenuUsuario({ user, onLogout, darkMode, onToggleDarkMode }) {
+  const [aberto, setAberto] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const menuBg = darkMode ? "#2a2a3e" : "white";
+  const textColor = darkMode ? "#E6E6FA" : "#4A3B5C";
+  const borderColor = darkMode ? "#3a3a4e" : "#EDE7F6";
+
+  return (
+    <div ref={menuRef} style={{ position: "relative" }}>
+      <div 
+        onClick={() => setAberto(!aberto)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: darkMode ? "rgba(200,200,255,0.1)" : "rgba(118, 75, 162, 0.1)",
+          padding: "4px 8px 4px 4px",
+          borderRadius: 40,
+          cursor: "pointer",
+        }}
+      >
+        <Avatar 
+          initials={user?.nome_convidado?.charAt(0).toUpperCase() || "?"}
+          size={36}
+          color="#967BB6"
+          avatarUrl={user?.avatar_url}
+        />
+        <span style={{ fontWeight: 500, color: textColor, fontSize: 13 }}>
+          {user?.nome_convidado || "Convidado"}
+        </span>
+        <span style={{ fontSize: 10, color: "#967BB6" }}>▼</span>
+      </div>
+
+      {aberto && (
+        <div style={{
+          position: "absolute",
+          top: "100%",
+          right: 0,
+          marginTop: 8,
+          background: menuBg,
+          borderRadius: 12,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+          minWidth: 160,
+          overflow: "hidden",
+          zIndex: 1000,
+          border: `1px solid ${borderColor}`,
+        }}>
+          <button 
+            onClick={onToggleDarkMode}
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              border: "none",
+              background: menuBg,
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: 13,
+              color: textColor,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            {darkMode ? <IconSun /> : <IconMoon />}
+            {darkMode ? "Modo Claro" : "Modo Escuro"}
+          </button>
+          <button 
+            onClick={() => {
+              setAberto(false);
+              window.location.href = "/perfil";
+            }} 
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              border: "none",
+              background: menuBg,
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: 13,
+              color: textColor,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <IconUser /> Meu Perfil
+          </button>
+          <button 
+            onClick={onLogout} 
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              border: "none",
+              borderTop: `1px solid ${borderColor}`,
+              background: menuBg,
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: 13,
+              color: "#e74c3c",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <IconLogout /> Sair
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -392,10 +512,10 @@ export default function App() {
     // Buscar posts com dados do autor
     const { data: postsData, error } = await supabase
       .from('posts')
-      .select(`
+      .select(\`
         *,
         profiles:user_id (id, nome_convidado, avatar_url)
-      `)
+      \`)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -413,7 +533,7 @@ export default function App() {
       // Buscar comentários
       const { data: commentsData } = await supabase
         .from('comments')
-        .select('*, profiles:user_id (nome_convidado, avatar_url)')
+        .select('*')
         .order('created_at', { ascending: true });
       
       const commentsByPost = {};
@@ -421,11 +541,9 @@ export default function App() {
         if (!commentsByPost[comment.post_id]) commentsByPost[comment.post_id] = [];
         commentsByPost[comment.post_id].push({
           id: comment.id,
-          user_id: comment.user_id,
-          author: comment.profiles?.nome_convidado || 'Convidado',
+          author: comment.user_id === userId ? user?.nome_convidado : 'Convidado',
           text: comment.text,
-          created_at: comment.created_at,
-          avatar_url: comment.profiles?.avatar_url,
+          created_at: comment.created_at
         });
       });
       setComments(commentsByPost);
@@ -462,6 +580,7 @@ export default function App() {
     if (!post) return;
     
     if (post.liked) {
+      // Remover like
       const { error } = await supabase
         .from('likes')
         .delete()
@@ -476,6 +595,7 @@ export default function App() {
         ));
       }
     } else {
+      // Adicionar like
       const { error } = await supabase
         .from('likes')
         .insert({ post_id: postId, user_id: user.id });
@@ -493,10 +613,36 @@ export default function App() {
 
   const handlePublish = async ({ image_url, caption }, onComplete) => {
     try {
+      // Converter dataURL para File
       const fileName = `${user.id}/${Date.now()}.jpg`;
-      const publicUrl = await uploadPhoto(user.id, image_url, fileName);
-      const newPost = await createPost(user.id, publicUrl, caption);
+      const file = dataURLtoFile(image_url, fileName);
       
+      // Upload para storage
+      const { error: uploadError } = await supabase.storage
+        .from('event-photos')
+        .upload(fileName, file);
+      
+      if (uploadError) throw uploadError;
+      
+      // Pegar URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('event-photos')
+        .getPublicUrl(fileName);
+      
+      // Inserir post no banco usando supabaseAdmin (burlar RLS)
+      const { data: newPost, error: insertError } = await supabaseAdmin
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          image_url: publicUrl,
+          caption: caption
+        })
+        .select()
+        .single();
+      
+      if (insertError) throw insertError;
+      
+      // Adicionar ao estado local
       const formattedPost = {
         id: newPost.id,
         user_id: user.id,
@@ -540,71 +686,33 @@ export default function App() {
   };
 
   const handleAddComment = async (postId, text) => {
-    try {
-      const newComment = await createComment(user.id, postId, text);
+    const { data: newComment, error } = await supabase
+      .from('comments')
+      .insert({
+        post_id: postId,
+        user_id: user.id,
+        text: text
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      showToastMsg("Erro ao comentar");
+    } else {
       const comment = {
         id: newComment.id,
-        user_id: user.id,
-        author: newComment.author || user.nome_convidado,
-        text: newComment.text,
+        author: user.nome_convidado,
+        text: text,
         created_at: newComment.created_at,
-        avatar_url: newComment.avatar_url || user.avatar_url,
+        avatar_url: user.avatar_url
       };
-
+      
       setComments(prev => ({
         ...prev,
-        [postId]: [...(prev[postId] || []), comment],
+        [postId]: [...(prev[postId] || []), comment]
       }));
-
+      
       showToastMsg("Comentário adicionado!");
-    } catch (error) {
-      console.error("Erro ao comentar:", error);
-      showToastMsg("Erro ao comentar");
-      throw error;
-    }
-  };
-
-  const handleEditComment = async (commentId, text) => {
-    try {
-      const updated = await updateComment(user.id, commentId, text);
-
-      setComments(prev => {
-        const next = { ...prev };
-        Object.keys(next).forEach(postId => {
-          next[postId] = next[postId].map(c =>
-            c.id === commentId
-              ? { ...c, text: updated.text, created_at: updated.created_at || c.created_at }
-              : c
-          );
-        });
-        return next;
-      });
-
-      showToastMsg("Comentário atualizado!");
-    } catch (error) {
-      console.error("Erro ao editar:", error);
-      showToastMsg("Erro ao editar comentário");
-      throw error;
-    }
-  };
-
-  const handleDeleteComment = async (commentId) => {
-    try {
-      await deleteComment(user.id, commentId);
-
-      setComments(prev => {
-        const next = { ...prev };
-        Object.keys(next).forEach(postId => {
-          next[postId] = next[postId].filter(c => c.id !== commentId);
-        });
-        return next;
-      });
-
-      showToastMsg("Comentário excluído");
-    } catch (error) {
-      console.error("Erro ao excluir:", error);
-      showToastMsg("Erro ao excluir comentário");
-      throw error;
     }
   };
 
@@ -646,21 +754,30 @@ export default function App() {
 
   return (
     <>
-      <style>{`
+      <style>{\`
         @keyframes floatHeart { 0%,100%{transform:translateY(0) rotate(-5deg);opacity:0.07} 50%{transform:translateY(-60px) rotate(5deg);opacity:0.12} }
         @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
         @keyframes pulse { 0%,100%{transform:scale(1);box-shadow:0 4px 16px rgba(150,123,182,0.4)} 50%{transform:scale(1.05);box-shadow:0 6px 24px rgba(150,123,182,0.5)} }
         * { -webkit-tap-highlight-color: transparent; }
         body { background: ${bgColor}; transition: background 0.3s ease; }
-      `}</style>
+      \`}</style>
 
       <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 900 }} />
       <FloatingHearts />
       <Toast message={toast.message} visible={toast.visible} />
 
-      <header className="app-header" style={{
+      {/* HEADER */}
+      <header style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 200,
         background: headerBg,
+        backdropFilter: "blur(12px)",
         borderBottom: `1px solid ${headerBorder}`,
+        padding: "10px 16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
       }}>
         <div 
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
@@ -693,10 +810,11 @@ export default function App() {
         />
       </header>
 
-      <div className="app-shell">
+      {/* CONTENT */}
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "12px 12px 80px" }}>
         <CoupleCarousel />
 
-        <div className="feed-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginTop: 12 }}>
           {posts.map(post => (
             <PostCard
               key={post.id}
@@ -721,14 +839,34 @@ export default function App() {
         )}
       </div>
 
+      {/* FAB */}
       <button
         onClick={() => setShowUpload(true)}
-        className="fab-btn"
-        aria-label="Publicar foto"
+        style={{
+          position: "fixed",
+          bottom: 24,
+          right: 16,
+          zIndex: 300,
+          width: 52,
+          height: 52,
+          borderRadius: "50%",
+          background: "#967BB6",
+          color: "#fff",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          animationName: "pulse",
+          animationDuration: "2s",
+          animationIterationCount: "infinite",
+          boxShadow: "0 4px 16px rgba(150,123,182,0.4)",
+        }}
       >
         <IconPlus />
       </button>
 
+      {/* MODALS */}
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} onPublish={handlePublish} darkMode={darkMode} />}
       {commentPostId && (
         <CommentsModal
@@ -737,8 +875,6 @@ export default function App() {
           currentUser={user}
           onClose={() => setCommentPostId(null)}
           onAdd={handleAddComment}
-          onEdit={handleEditComment}
-          onDelete={handleDeleteComment}
           darkMode={darkMode}
         />
       )}
@@ -749,8 +885,6 @@ export default function App() {
           currentUserId={user.id}
           onLike={handleLike}
           onAddComment={handleAddComment}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
           onClose={() => setPhotoModalOpen(false)}
           darkMode={darkMode}
         />

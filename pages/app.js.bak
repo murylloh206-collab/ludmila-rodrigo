@@ -1,0 +1,705 @@
+﻿import { useState, useEffect, useRef } from "react";
+import FloatingHearts from "../components/FloatingHearts";
+import Toast from "../components/Toast";
+import CoupleCarousel from "../components/CoupleCarousel";
+import Avatar from "../components/Avatar";
+import PhotoModal from "../components/PhotoModal";
+import { supabase } from "../lib/supabase";
+
+// ─── ÍCONES SVG ──────────────────────────────────────────────────────────────
+const IconHeart = ({ filled }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "#967BB6" : "none"} stroke="#967BB6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+  </svg>
+);
+
+const IconComment = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9B8FAF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const IconTrash = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C3B1E1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+  </svg>
+);
+
+const IconPlus = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+
+const IconClose = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9B8FAF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+const IconCamera = () => (
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#967BB6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+    <circle cx="12" cy="13" r="4"/>
+  </svg>
+);
+
+const IconSend = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13"/>
+    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+  </svg>
+);
+
+const IconUser = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4A3B5C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
+const IconLogout = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+);
+
+// ─── MOCK DATA (só aparece quando não há posts reais) ─────────────────────────
+const MOCK_POSTS = [
+  {
+    id: "mock1", user_id: "mock", image_url: "https://images.unsplash.com/photo-1519741497674-611481863552?w=600&q=80",
+    caption: "Que momento lindo! Muito amor para vocês dois! 💜", likes_count: 12,
+    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+    author: { nome_convidado: "Ana Clara", avatar_initial: "AC" }, liked: false, isMock: true, comments: [],
+  },
+  {
+    id: "mock2", user_id: "mock", image_url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&q=80",
+    caption: "Eternizando esse dia especial com vocês! ✨", likes_count: 8,
+    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
+    author: { nome_convidado: "Pedro Henrique", avatar_initial: "PH" }, liked: true, isMock: true, comments: [],
+  },
+  {
+    id: "mock3", user_id: "mock", image_url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=600&q=80",
+    caption: "Amor que transcende o tempo 🌸", likes_count: 21,
+    created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
+    author: { nome_convidado: "Mariana Lima", avatar_initial: "ML" }, liked: false, isMock: true, comments: [],
+  },
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function timeAgo(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return "agora";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
+}
+
+function launchConfetti(canvasRef) {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.pointerEvents = "none";
+  const particles = Array.from({ length: 60 }, () => ({
+    x: Math.random() * canvas.width, y: -10,
+    vx: (Math.random() - 0.5) * 3, vy: Math.random() * 2 + 3,
+    color: ["#C3B1E1", "#967BB6", "#E6E6FA", "#D8C8F0", "#7A5A9E"][Math.floor(Math.random() * 5)],
+    size: Math.random() * 6 + 3, rotation: Math.random() * 360,
+    rotationSpeed: (Math.random() - 0.5) * 10,
+  }));
+  let frame = 0;
+  const animate = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rotation += p.rotationSpeed;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+      ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.restore();
+    });
+    if (++frame < 60) requestAnimationFrame(animate);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+  requestAnimationFrame(animate);
+}
+
+// ─── POST CARD ───────────────────────────────────────────────────────────────
+function PostCard({ post, currentUserId, onLike, onComment, onDelete, onOpenPhoto }) {
+  const isOwner = post.user_id === currentUserId && !post.isMock;
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  return (
+    <div style={{
+      background: "#fff", borderRadius: 14, overflow: "hidden",
+      border: "1px solid #EDE7F6", transition: "transform 0.2s, box-shadow 0.2s",
+    }}>
+      <div 
+        style={{ aspectRatio: "1/1", position: "relative", background: "#F5F0FF", cursor: "pointer" }} 
+        onClick={() => onOpenPhoto(post.id)}
+      >
+        {!imgLoaded && (
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(110deg, #EDE7F6 30%, #D8C8F0 50%, #EDE7F6 70%)", backgroundSize: "200% 100%", animationName: "shimmer", animationDuration: "1.5s", animationIterationCount: "infinite" }} />
+        )}
+        <img src={post.image_url} alt={post.caption} onLoad={() => setImgLoaded(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: imgLoaded ? "block" : "none" }} />
+      </div>
+      <div style={{ padding: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <Avatar initials={post.author.avatar_initial} size={28} color="#C3B1E1" />
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#4A3B5C", flex: 1 }}>{post.author.nome_convidado}</span>
+          <span style={{ fontSize: 10, color: "#9B8FAF" }}>{timeAgo(post.created_at)}</span>
+          {isOwner && (
+            <button onClick={() => onDelete(post.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+              <IconTrash />
+            </button>
+          )}
+        </div>
+        {post.caption && (
+          <p style={{ fontSize: 12, color: "#7A6A8F", margin: "0 0 8px", lineHeight: 1.4 }}>{post.caption}</p>
+        )}
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <button onClick={() => onLike(post.id)} style={{
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <IconHeart filled={post.liked} />
+            <span style={{ fontSize: 12, color: post.liked ? "#967BB6" : "#9B8FAF" }}>{post.likes_count}</span>
+          </button>
+          <button onClick={() => onComment(post.id)} style={{
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <IconComment />
+            <span style={{ fontSize: 12, color: "#9B8FAF" }}>Comentar</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── UPLOAD MODAL ────────────────────────────────────────────────────────────
+function UploadModal({ onClose, onPublish }) {
+  const [preview, setPreview] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const inputRef = useRef();
+
+  const handleFile = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handlePublish = () => {
+    if (!preview) return;
+    setPublishing(true);
+    setTimeout(() => {
+      onPublish({ image_url: preview, caption });
+      setPublishing(false);
+    }, 800);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(74,59,92,0.5)", zIndex: 500, display: "flex", alignItems: "flex-end", padding: 0 }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 560, margin: "0 auto", padding: 20, paddingBottom: 32, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "#4A3B5C", margin: 0, fontWeight: 600 }}>Compartilhar</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><IconClose /></button>
+        </div>
+        {!preview ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <button onClick={() => inputRef.current?.click()} style={{
+              background: "#F5F0FF", border: "2px dashed #C3B1E1", borderRadius: 14,
+              padding: 28, cursor: "pointer", color: "#7A6A8F", fontSize: 14,
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+            }}>
+              <IconCamera />
+              <span>Toque para escolher uma foto</span>
+            </button>
+            <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{ display: "none" }} />
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ borderRadius: 14, overflow: "hidden", aspectRatio: "1/1", position: "relative" }}>
+              <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <button onClick={() => setPreview(null)} style={{
+                position: "absolute", top: 8, right: 8, background: "rgba(74,59,92,0.7)",
+                border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer",
+                color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+              }}>✕</button>
+            </div>
+            <textarea
+              placeholder="Escreva uma legenda..."
+              value={caption}
+              onChange={e => setCaption(e.target.value.slice(0, 200))}
+              rows={2}
+              style={{
+                border: "1.5px solid #C3B1E1", borderRadius: 10, padding: "10px 12px",
+                fontSize: 13, color: "#4A3B5C", resize: "none", fontFamily: "inherit",
+                outline: "none", background: "#F9F7FF",
+              }}
+            />
+            <div style={{ textAlign: "right", fontSize: 11, color: "#9B8FAF", marginTop: -6 }}>{caption.length}/200</div>
+            <button onClick={handlePublish} disabled={publishing} style={{
+              background: "#967BB6", color: "#fff", border: "none", borderRadius: 12,
+              padding: "12px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+              opacity: publishing ? 0.8 : 1, transition: "all 0.2s",
+            }}>
+              {publishing ? "Publicando..." : "Publicar"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── COMMENTS MODAL ──────────────────────────────────────────────────────────
+function CommentsModal({ postId, comments, currentUser, onClose, onAdd }) {
+  const [text, setText] = useState("");
+  const postComments = comments[postId] || [];
+  const listRef = useRef();
+
+  const handleSend = () => {
+    if (!text.trim()) return;
+    onAdd(postId, text.trim());
+    setText("");
+    setTimeout(() => listRef.current?.scrollTo({ top: 9999, behavior: "smooth" }), 100);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(74,59,92,0.5)", zIndex: 500, display: "flex", alignItems: "flex-end" }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", maxHeight: "70vh" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #F0EBF8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: "#4A3B5C", margin: 0 }}>Comentários</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><IconClose /></button>
+        </div>
+        <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {postComments.length === 0 && <p style={{ color: "#9B8FAF", fontSize: 13, textAlign: "center", marginTop: 20 }}>Seja o primeiro a comentar!</p>}
+          {postComments.map(c => (
+            <div key={c.id} style={{ display: "flex", gap: 10 }}>
+              <Avatar initials={c.author.slice(0, 2).toUpperCase()} size={32} color="#C3B1E1" />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#4A3B5C" }}>{c.author}</div>
+                <div style={{ fontSize: 13, color: "#7A6A8F", lineHeight: 1.4 }}>{c.text}</div>
+                <div style={{ fontSize: 10, color: "#9B8FAF", marginTop: 2 }}>{timeAgo(c.created_at)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "12px 16px 20px", borderTop: "1px solid #F0EBF8", display: "flex", gap: 10 }}>
+          <input
+            value={text} onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSend()}
+            placeholder="Adicione um comentário..."
+            style={{
+              flex: 1, border: "1.5px solid #C3B1E1", borderRadius: 20, padding: "10px 14px",
+              fontSize: 13, color: "#4A3B5C", outline: "none", background: "#F9F7FF",
+              fontFamily: "inherit",
+            }}
+          />
+          <button onClick={handleSend} style={{
+            background: "#967BB6", color: "#fff", border: "none", borderRadius: "50%",
+            width: 38, height: 38, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <IconSend />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MENU USUÁRIO (DROPDOWN) ─────────────────────────────────────────────────
+function MenuUsuario({ user, onLogout }) {
+  const [aberto, setAberto] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={menuRef} style={{ position: "relative" }}>
+      <div 
+        onClick={() => setAberto(!aberto)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "rgba(118, 75, 162, 0.1)",
+          padding: "4px 8px 4px 4px",
+          borderRadius: 40,
+          cursor: "pointer",
+        }}
+      >
+        <div style={{
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          background: "#967BB6",
+          color: "white",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: "bold",
+          fontSize: 16,
+        }}>
+          {user?.nome_convidado?.charAt(0).toUpperCase() || "?"}
+        </div>
+        <span style={{ fontWeight: 500, color: "#4A3B5C", fontSize: 13 }}>
+          {user?.nome_convidado || "Convidado"}
+        </span>
+        <span style={{ fontSize: 10, color: "#967BB6" }}>▼</span>
+      </div>
+
+      {aberto && (
+        <div style={{
+          position: "absolute",
+          top: "100%",
+          right: 0,
+          marginTop: 8,
+          background: "white",
+          borderRadius: 12,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+          minWidth: 160,
+          overflow: "hidden",
+          zIndex: 1000,
+        }}>
+          <button 
+            onClick={() => {
+              setAberto(false);
+              window.location.href = "/perfil";
+            }} 
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              border: "none",
+              background: "white",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: 13,
+              color: "#4A3B5C",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <IconUser /> Meu Perfil
+          </button>
+          <button 
+            onClick={onLogout} 
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              border: "none",
+              borderTop: "1px solid #EDE7F6",
+              background: "white",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: 13,
+              color: "#e74c3c",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <IconLogout /> Sair
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [comments, setComments] = useState({});
+  const [showUpload, setShowUpload] = useState(false);
+  const [commentPostId, setCommentPostId] = useState(null);
+  const [toast, setToast] = useState({ visible: false, message: "" });
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const canvasRef = useRef();
+  const [loading, setLoading] = useState(true);
+
+  // Carregar posts salvos do localStorage
+  useEffect(() => {
+    const userSalvo = localStorage.getItem("user_lr");
+    if (!userSalvo) {
+      window.location.href = "/";
+      return;
+    }
+    setUser(JSON.parse(userSalvo));
+    
+    const savedPosts = localStorage.getItem("user_posts");
+    const savedComments = localStorage.getItem("user_comments");
+    
+    if (savedPosts && JSON.parse(savedPosts).length > 0) {
+      setPosts(JSON.parse(savedPosts));
+    } else {
+      setPosts([...MOCK_POSTS]);
+    }
+    
+    if (savedComments) {
+      setComments(JSON.parse(savedComments));
+    } else {
+      setComments({});
+    }
+    
+    setLoading(false);
+  }, []);
+
+  // Salvar posts no localStorage
+  useEffect(() => {
+    if (!loading && user) {
+      localStorage.setItem("user_posts", JSON.stringify(posts));
+      localStorage.setItem("user_comments", JSON.stringify(comments));
+    }
+  }, [posts, comments, loading, user]);
+
+  const showToastMsg = (msg) => {
+    setToast({ visible: true, message: msg });
+    setTimeout(() => setToast(t => ({ ...t, visible: false })), 2000);
+  };
+
+  const handleLike = (postId) => {
+    setPosts(ps => ps.map(p => {
+      if (p.id !== postId) return p;
+      const liked = !p.liked;
+      if (liked && !p.isMock) showToastMsg("Curtido!");
+      return { ...p, liked, likes_count: p.likes_count + (liked ? 1 : -1) };
+    }));
+  };
+
+  const handlePublish = ({ image_url, caption }) => {
+    const newPost = {
+      id: Date.now().toString(),
+      user_id: user?.id,
+      image_url,
+      caption,
+      likes_count: 0,
+      comments_count: 0,
+      created_at: new Date().toISOString(),
+      liked: false,
+      isMock: false,
+      comments: [],
+      author: {
+        nome_convidado: user?.nome_convidado || "Convidado",
+        avatar_initial: user?.nome_convidado?.slice(0, 2).toUpperCase() || "CO",
+      },
+    };
+    
+    if (posts.length > 0 && posts[0]?.isMock) {
+      setPosts([newPost]);
+      setComments({});
+    } else {
+      setPosts(ps => [newPost, ...ps.filter(p => !p.isMock)]);
+    }
+    
+    setShowUpload(false);
+    launchConfetti(canvasRef);
+    showToastMsg("Foto publicada!");
+  };
+
+  const handleDelete = (postId) => {
+    const newPosts = posts.filter(p => p.id !== postId);
+    
+    if (newPosts.length === 0 || !newPosts.some(p => !p.isMock)) {
+      setPosts([...MOCK_POSTS]);
+      setComments({});
+    } else {
+      setPosts(newPosts);
+    }
+    
+    showToastMsg("Foto removida.");
+  };
+
+  const handleAddComment = (postId, text) => {
+    const newComment = {
+      id: Date.now().toString(),
+      author: user?.nome_convidado || "Convidado",
+      text,
+      created_at: new Date().toISOString(),
+    };
+    setComments(cs => ({ ...cs, [postId]: [...(cs[postId] || []), newComment] }));
+    // Atualizar também no array de posts para o modal
+    setPosts(ps => ps.map(p => 
+      p.id === postId 
+        ? { ...p, comments: [...(p.comments || []), newComment] }
+        : p
+    ));
+    showToastMsg("Comentário adicionado!");
+  };
+
+  const handleOpenPhoto = (postId) => {
+    const index = posts.findIndex(p => p.id === postId);
+    setSelectedPhotoIndex(index);
+    setPhotoModalOpen(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("user_lr");
+    window.location.href = "/";
+  };
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#F5F0FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p>Carregando... 💜</p>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  const hasRealPosts = posts.some(p => !p.isMock);
+
+  // Preparar posts para o modal com comentários
+  const postsWithComments = posts.map(post => ({
+    ...post,
+    comments: comments[post.id] || []
+  }));
+
+  return (
+    <>
+      <style>{`
+        @keyframes floatHeart { 0%,100%{transform:translateY(0) rotate(-5deg);opacity:0.07} 50%{transform:translateY(-60px) rotate(5deg);opacity:0.12} }
+        @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        @keyframes pulse { 0%,100%{transform:scale(1);box-shadow:0 4px 16px rgba(150,123,182,0.4)} 50%{transform:scale(1.05);box-shadow:0 6px 24px rgba(150,123,182,0.5)} }
+        * { -webkit-tap-highlight-color: transparent; }
+      `}</style>
+
+      <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 900 }} />
+      <FloatingHearts />
+      <Toast message={toast.message} visible={toast.visible} />
+
+      {/* HEADER */}
+      <header style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 200,
+        background: "rgba(245,240,255,0.95)",
+        backdropFilter: "blur(12px)",
+        borderBottom: "1px solid #EDE7F6",
+        padding: "10px 16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 22 }}>💜</span>
+            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, fontWeight: 600, color: "#4A3B5C" }}>L & R</span>
+            <span style={{ fontSize: 22 }}>💜</span>
+          </div>
+          <div style={{ fontSize: 10, color: "#7A6A8F" }}>Ludmila & Rodrigo</div>
+        </div>
+
+        <MenuUsuario user={user} onLogout={handleLogout} />
+      </header>
+
+      {/* CONTENT */}
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "12px 12px 80px" }}>
+        <CoupleCarousel />
+
+        {hasRealPosts && (
+          <div style={{ marginBottom: 12, textAlign: "center" }}>
+            <span style={{ fontSize: 11, color: "#967BB6", background: "rgba(150,123,182,0.1)", padding: "4px 10px", borderRadius: 20 }}>
+              📸 {posts.filter(p => !p.isMock).length} foto(s) suas
+            </span>
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginTop: 12 }}>
+          {posts.map(post => (
+            <PostCard
+              key={post.id}
+              post={post}
+              currentUserId={user.id}
+              onLike={handleLike}
+              onComment={setCommentPostId}
+              onDelete={handleDelete}
+              onOpenPhoto={handleOpenPhoto}
+            />
+          ))}
+        </div>
+
+        {posts.length === 0 && (
+          <div style={{ textAlign: "center", padding: "40px 20px", background: "#fff", borderRadius: 16, border: "1px solid #EDE7F6" }}>
+            <p style={{ color: "#7A6A8F" }}>Nenhuma foto ainda</p>
+            <button onClick={() => setShowUpload(true)} style={{ marginTop: 12, background: "#967BB6", color: "white", border: "none", padding: "8px 20px", borderRadius: 24, cursor: "pointer" }}>
+              Publicar primeira foto
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* FAB */}
+      <button
+        onClick={() => setShowUpload(true)}
+        style={{
+          position: "fixed",
+          bottom: 24,
+          right: 16,
+          zIndex: 300,
+          width: 52,
+          height: 52,
+          borderRadius: "50%",
+          background: "#967BB6",
+          color: "#fff",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          animationName: "pulse",
+          animationDuration: "2s",
+          animationIterationCount: "infinite",
+          boxShadow: "0 4px 16px rgba(150,123,182,0.4)",
+        }}
+      >
+        <IconPlus />
+      </button>
+
+      {/* MODALS */}
+      {showUpload && <UploadModal onClose={() => setShowUpload(false)} onPublish={handlePublish} />}
+      {commentPostId && (
+        <CommentsModal
+          postId={commentPostId}
+          comments={comments}
+          currentUser={user}
+          onClose={() => setCommentPostId(null)}
+          onAdd={handleAddComment}
+        />
+      )}
+      {photoModalOpen && (
+        <PhotoModal
+          posts={postsWithComments}
+          initialIndex={selectedPhotoIndex}
+          currentUserId={user.id}
+          onLike={handleLike}
+          onAddComment={handleAddComment}
+          onClose={() => setPhotoModalOpen(false)}
+        />
+      )}
+    </>
+  );
+}
