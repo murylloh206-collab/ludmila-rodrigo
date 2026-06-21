@@ -45,10 +45,18 @@ const IconClose = () => (
   </svg>
 );
 
-const IconCamera = () => (
-  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#967BB6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+const IconCamera = ({ color = "#967BB6", size = 36 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
     <circle cx="12" cy="13" r="4"/>
+  </svg>
+);
+
+const IconGallery = ({ color = "#967BB6", size = 36 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+    <circle cx="8.5" cy="8.5" r="1.5"/>
+    <polyline points="21 15 16 10 5 21"/>
   </svg>
 );
 
@@ -349,7 +357,7 @@ function UploadModal({ onClose, onPublish, darkMode }) {
                   e.currentTarget.style.boxShadow = "0 4px 15px rgba(150,123,182,0.3)";
                 }}
               >
-                <span style={{ fontSize: 36 }}>📸</span>
+                <IconCamera color="#fff" />
                 <span style={{ fontWeight: 600 }}>Tirar Foto</span>
                 <span style={{ fontSize: 11, opacity: 0.85 }}>Usar a câmera</span>
               </button>
@@ -374,7 +382,7 @@ function UploadModal({ onClose, onPublish, darkMode }) {
                   e.currentTarget.style.boxShadow = "0 2px 10px rgba(195,177,225,0.2)";
                 }}
               >
-                <span style={{ fontSize: 36 }}>🖼️</span>
+                <IconGallery />
                 <span style={{ fontWeight: 600, color: "#4A3B5C" }}>Galeria</span>
                 <span style={{ fontSize: 11, color: "#9B8FAF" }}>Escolher uma foto</span>
               </button>

@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
+import { formatServerSupabaseError, getSupabaseAdmin } from "../../lib/supabaseAdmin";
 
 export const config = {
   api: {
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
       });
 
     if (uploadError) {
-      return res.status(500).json({ error: uploadError.message });
+      return res.status(500).json({ error: formatServerSupabaseError(uploadError) });
     }
 
     const { data: { publicUrl } } = supabase.storage
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error("Erro no upload:", error);
     return res.status(500).json({
-      error: error.message || "Erro interno ao enviar foto",
+      error: formatServerSupabaseError(error),
     });
   }
 }

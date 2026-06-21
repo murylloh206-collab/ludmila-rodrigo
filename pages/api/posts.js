@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
+import { formatServerSupabaseError, getSupabaseAdmin } from "../../lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -35,14 +35,14 @@ export default async function handler(req, res) {
       .single();
 
     if (insertError) {
-      return res.status(500).json({ error: insertError.message });
+      return res.status(500).json({ error: formatServerSupabaseError(insertError) });
     }
 
     return res.status(200).json({ post: newPost });
   } catch (error) {
     console.error("Erro ao criar post:", error);
     return res.status(500).json({
-      error: error.message || "Erro interno ao publicar foto",
+      error: formatServerSupabaseError(error),
     });
   }
 }
